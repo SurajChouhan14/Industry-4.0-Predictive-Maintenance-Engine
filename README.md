@@ -1,88 +1,58 @@
-# Industry 4.0 Predictive Maintenance & Remaining Useful Life (RUL) Engine
+# 🚀 Turbofan Predictive Maintenance & RUL Engine
+### NASA C-MAPSS FD001 Dataset | Gradient Boosted RUL Regressors | Piece-Wise Linear Clipping | OpEx Simulation
 
-A production-ready industrial IoT telemetry and operations reliability platform engineered for **Operations Strategy, Supply Chain Consulting, and Industrial Manufacturing (McKinsey Operations, BCG X, PwC Strategy&, GE Digital)**, combining **Multi-Channel Sensor Telemetry Ingestion, Gradient Boosting Remaining Useful Life (RUL) Regression, and Fleet-Wide Downtime OpEx Optimization**.
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Industrial IoT](https://img.shields.io/badge/Industrial%20IoT-NASA%20C--MAPSS-success.svg)](https://data.nasa.gov/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
----
-
-## 1. System Architecture
-
-```
-+---------------------------------------------------------------------------------------------------+
-| INDUSTRY 4.0 PREDICTIVE MAINTENANCE PIPELINE                                                     |
-+---------------------------------------------------------------------------------------------------+
-  [Industrial IoT Telemetry Streams] (250 Rotary Assets / Vibration, Temp, Pressure, Acoustic)
-           
-           
-  [Degradation Feature Processor] (Exponential wear curve & multi-sensor feature extraction)
-           
-           
-  [Gradient Boosting RUL Regressor] (Forecasts operational cycles until catastrophic failure)
-           
-           
-  [Sensor Importance Attribution] (Vibration RMS >45%, Thermal Temp >30%, Hydraulic Pressure >15%)
-           
-           
-  [Prescriptive Maintenance Optimizer] (Schedules JIT repair when predicted RUL <= 25 cycles)
-           
-           
-  [Fleet OpEx Benchmarking] (Achieves >85% operational cost reduction vs. reactive failure)
-+---------------------------------------------------------------------------------------------------+
-```
+An Industrial IoT predictive maintenance engine estimating Remaining Useful Life (RUL) across 21 turbofan telemetry channels from the official NASA C-MAPSS dataset. Implements piece-wise linear RUL clipping and simulates fleet maintenance OpEx savings.
 
 ---
 
-## 2. Key Mathematical Formulations
+## 📌 Methodology & Degradation Modeling
 
-### A. Non-Linear Machine Degradation Model
-$$X_t = X_0 + \Delta_{\max} \cdot \left(rac{t}{T_{	ext{failure}}}
-ight)^\gamma + \epsilon_t \quad (\gamma = 3.0)$$
-$$	ext{Remaining Useful Life (RUL)}_t = T_{	ext{failure}} - t$$
+### 1. Sensor Degradation Engineering:
+Extracts rolling statistical moments (mean, standard deviation, trends) across 21 sensor channels.
 
-### B. Fleet Maintenance Expenditure Optimization
-$$	ext{Cost}_{	ext{Reactive}} = N_{	ext{fleet}} 	imes C_{	ext{Catastrophic}}$$
-$$	ext{Cost}_{	ext{PdM}} = (N_{	ext{Scheduled}} 	imes C_{	ext{Planned}}) + (N_{	ext{Missed}} 	imes C_{	ext{Catastrophic}})$$
-$$	ext{OpEx Savings} = rac{	ext{Cost}_{	ext{Reactive}} - 	ext{Cost}_{	ext{PdM}}}{	ext{Cost}_{	ext{Reactive}}} 	imes 100\%$$
+### 2. Piece-Wise Linear RUL Target Clipping:
+$$\text{Target RUL}_t = \min(RUL_{\max}, \; T_{\text{failure}} - t), \quad RUL_{\max} = 125 \text{ cycles}$$
+* Prevents regressors from learning non-existent degradation patterns during healthy early operating cycles.
 
 ---
 
-## 3. Benchmark Verification Output (250 Heavy Industrial Units)
+## 📊 Benchmark Performance & OpEx Economic Simulation
+* **Dataset:** NASA C-MAPSS FD001 ($20,631$ cycles across 100 jet engine units).
+* **Holdout Validation Performance ($N = 20$ Test Engines / 4,070 Cycles):**
+  * **Mean Absolute Error (MAE):** $\mathbf{14.96 \text{ operational cycles}}$
+  * **Root Mean Squared Error (RMSE):** $20.00\text{ cycles}$
+  * **Holdout $R^2$:** $0.7701$
+* **Fleet OpEx Economic Simulation:**
+  * Run-to-Failure Cost Baseline: $\$240,000.00$
+  * Periodic Overhaul Baseline: $\$167,500.00$
+  * Predictive Maintenance Fleet Cost: $\$24,000.00$
+  * **Net Fleet Maintenance OpEx Reduction:** **-85.67% capital savings** over periodic overhauls.
 
+---
+
+## 📂 Repository Structure
 ```
-=========================================================================================================
-FLEET MAINTENANCE OPEX & RELIABILITY BENCHMARK RESULTS
-=========================================================================================================
-  • Fleet Size Evaluated                   : 250 Heavy Industrial Units
-  • Reactive 'Run-to-Failure' Cost Baseline: $3,000,000.00
-  • Fixed Periodic Overhaul Cost Baseline  : $1,150,000.00
-  • Predictive Maintenance (PdM) Fleet Cost: $300,000.00
-  • OpEx Capital Savings vs. Reactive Loss : 90.00% Cost Reduction
-  • OpEx Capital Savings vs. Periodic Plan : 73.91% Cost Reduction
-  • R² Prediction Accuracy                 : 0.9642 (MAE: 12.3 cycles)
-=========================================================================================================
+Industry-4.0-Predictive-Maintenance-Engine/
+├── src/
+│   ├── predictive_maintenance_engine.py # Feature pipeline & GBRT RUL regressor
+│   └── data_loader.py              # NASA C-MAPSS dataset ingestion
+├── Turbofan_Predictive_Maintenance.ipynb # Interactive evaluation notebook
+├── run_pipeline.py                 # Pipeline execution script
+├── test_predictive_maintenance.py  # Unit testing suite (4/4 passing)
+└── requirements.txt                # Production dependencies
 ```
 
 ---
 
-## 4. Quick Start & Execution
-
+## 🚀 Quickstart & Reproducibility
 ```bash
-# 1. Install dependencies
+git clone https://github.com/SurajChouhan14/Industry-4.0-Predictive-Maintenance-Engine.git
+cd Industry-4.0-Predictive-Maintenance-Engine
 pip install -r requirements.txt
-
-# 2. Execute predictive maintenance pipeline
 python run_pipeline.py
+python -m unittest test_predictive_maintenance.py
 ```
-
----
-
-## 5. Master Placement Resume Description
-
-> **Industry 4.0 Predictive Maintenance & Remaining Useful Life (RUL) Engine**
-> * Engineered an enterprise predictive maintenance system monitoring 250 heavy industrial rotary assets across 4-channel IoT telemetry streams (Vibration, Thermal, Hydraulic Pressure).
-> * Formulated a Gradient Boosting Remaining Useful Life (RUL) regressor achieving an 0.96 $R^2$ score and 12.3 cycle MAE in predicting time-to-failure degradation manifolds.
-> * Modeled fleet maintenance expenditure across reactive, periodic, and predictive paradigms, demonstrating a 90.0% reduction in unplanned downtime OpEx (\$3.0M baseline to \$300K).
-
----
-
-## License
-MIT License. Open for academic research and portfolio demonstration.

@@ -1,9 +1,14 @@
 """
-Industrial Maintenance OpEx & Downtime Loss Optimization Engine.
-Compares 3 maintenance strategies:
-1. Run-to-Failure (Reactive): Catastrophic downtime cost ($12,000 / incident + line shutdown)
-2. Fixed-Schedule (Periodic): High preventative cost ($2,500 / overhaul every 50 cycles)
-3. Predictive Maintenance (PdM): Prescriptive repair when RUL <= 25 cycles ($1,200 / scheduled repair)
+Industrial Maintenance OpEx & Downtime Economic Optimization Engine.
+Compares 3 maintenance paradigms across out-of-sample turbofan fleet assets:
+1. Run-to-Failure (Reactive): Catastrophic downtime cost ($12,000 / breakdown incident + emergency replacement)
+2. Fixed-Schedule (Periodic): Routine scheduled overhaul every 60 operational cycles ($2,500 / scheduled overhaul)
+3. Predictive Maintenance (PdM): Condition-based prescriptive component servicing triggered at predicted RUL <= 25 cycles ($1,200 / JIT servicing)
+
+Economic Modeling Assumptions:
+- Evaluates out-of-sample holdout test engines (N=20 engines, 4,070 cycles).
+- Planned PdM servicing is scheduled upon first predicted RUL <= 25 cycles prior to actual catastrophic failure.
+- Unscheduled breakdown occurs if no PdM trigger is issued before actual engine failure cycle.
 """
 
 import numpy as np
@@ -16,33 +21,31 @@ class MaintenanceOpExOptimizer:
     """
 
     def __init__(self, reactive_cost=12000.0, periodic_cost=2500.0, pdm_cost=1200.0):
-        self.reactive_cost = reactive_cost # Catastrophic replacement + plant stoppage
-        self.periodic_cost = periodic_cost # Routine scheduled replacement (often premature)
-        self.pdm_cost = pdm_cost           # Planned JIT component swap
+        self.reactive_cost = reactive_cost  # Catastrophic replacement + emergency line stoppage
+        self.periodic_cost = periodic_cost  # Fixed periodic overhaul (frequently premature)
+        self.pdm_cost = pdm_cost            # Just-in-time planned condition-based maintenance
 
     def simulate_fleet_costs(self, df: pd.DataFrame, rul_pred_col: str) -> dict:
         """
-        Simulates total annual fleet maintenance expenditure across 250 industrial assets.
+        Simulates total fleet maintenance expenditure across out-of-sample test turbofan assets.
         """
         machines = df["machine_id"].unique()
         n_fleet = len(machines)
 
-        # 1. Reactive Cost (Every machine runs until failure)
+        # 1. Reactive Cost (Every engine runs unmonitored until failure)
         total_reactive_cost = n_fleet * self.reactive_cost
 
-        # 2. Periodic Cost (Overhaul every 60 cycles regardless of actual condition)
+        # 2. Periodic Cost (Fixed overhaul every 60 cycles regardless of actual condition)
         total_cycles = len(df)
         periodic_interventions = total_cycles // 60
         total_periodic_cost = periodic_interventions * self.periodic_cost
 
-        # 3. Predictive Maintenance Cost (Intervene once when predicted RUL <= 25)
-        # Intercept before failure (planned maintenance)
+        # 3. Predictive Maintenance Cost (Condition-based trigger at predicted RUL <= 25 cycles)
         pdm_interventions = 0
         missed_failures = 0
 
         for m in machines:
             m_df = df[df["machine_id"] == m]
-            # Check if alert was triggered before actual failure
             triggered = m_df[m_df[rul_pred_col] <= 25]
             if len(triggered) > 0:
                 first_trigger_cycle = triggered.iloc[0]["cycle"]
@@ -64,6 +67,7 @@ class MaintenanceOpExOptimizer:
             "total_periodic_cost_usd": float(total_periodic_cost),
             "total_pdm_cost_usd": float(total_pdm_cost),
             "pdm_interventions": pdm_interventions,
+            "missed_failures": missed_failures,
             "savings_vs_reactive_pct": savings_vs_reactive,
             "savings_vs_periodic_pct": savings_vs_periodic
         }

@@ -1,4 +1,4 @@
-name: Turbofan Predictive Maintenance CI
+name: Industry 4.0 Predictive Maintenance CI
 
 on:
   push:

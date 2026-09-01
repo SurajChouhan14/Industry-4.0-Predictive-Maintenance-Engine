@@ -1,73 +1,83 @@
 """
-Industrial Maintenance OpEx & Downtime Economic Optimization Engine.
-Compares 3 maintenance paradigms across out-of-sample turbofan fleet assets:
-1. Run-to-Failure (Reactive): Catastrophic downtime cost ($12,000 / breakdown incident + emergency replacement)
-2. Fixed-Schedule (Periodic): Routine scheduled overhaul every 60 operational cycles ($2,500 / scheduled overhaul)
-3. Predictive Maintenance (PdM): Condition-based prescriptive component servicing triggered at predicted RUL <= 25 cycles ($1,200 / JIT servicing)
-
-Economic Modeling Assumptions:
-- Evaluates out-of-sample holdout test engines (N=20 engines, 4,070 cycles).
-- Planned PdM servicing is scheduled upon first predicted RUL <= 25 cycles prior to actual catastrophic failure.
-- Unscheduled breakdown occurs if no PdM trigger is issued before actual engine failure cycle.
+Fleet Maintenance Cost Optimizer & Economic Loss Minimization.
+Calculates OpEx savings of Condition-Based Maintenance (PdM) vs Reactive Failure & Periodic Overhaul.
 """
 
 import numpy as np
 import pandas as pd
+from typing import Dict, Any, Tuple
 
-
-class MaintenanceOpExOptimizer:
+class MaintenanceCostOptimizer:
     """
-    Quantifies capital expenditure and operational downtime savings across maintenance paradigms.
+    Economic loss matrix evaluator for predictive maintenance:
+    - Planned Preventative Maintenance Cost (C_planned): $500 per machine
+    - Unplanned Catastrophic Breakdown Cost (C_unplanned): $10,000 (downtime + emergency repairs)
+    - False Alarm Inspection Cost (C_inspection): $100
     """
 
-    def __init__(self, reactive_cost=12000.0, periodic_cost=2500.0, pdm_cost=1200.0):
-        self.reactive_cost = reactive_cost  # Catastrophic replacement + emergency line stoppage
-        self.periodic_cost = periodic_cost  # Fixed periodic overhaul (frequently premature)
-        self.pdm_cost = pdm_cost            # Just-in-time planned condition-based maintenance
+    def __init__(
+        self,
+        c_planned: float = 500.0,
+        c_unplanned: float = 10000.0,
+        c_inspection: float = 100.0
+    ):
+        self.c_planned = c_planned
+        self.c_unplanned = c_unplanned
+        self.c_inspection = c_inspection
 
-    def simulate_fleet_costs(self, df: pd.DataFrame, rul_pred_col: str) -> dict:
-        """
-        Simulates total fleet maintenance expenditure across out-of-sample test turbofan assets.
-        """
-        machines = df["machine_id"].unique()
-        n_fleet = len(machines)
+    def evaluate_threshold_economics(
+        self, y_true: np.ndarray, y_probs: np.ndarray, thresholds: np.ndarray = None
+    ) -> Dict[str, Any]:
+        """Finds the optimal decision threshold T* minimizing total fleet operational losses."""
+        if thresholds is None:
+            thresholds = np.linspace(0.01, 0.99, 100)
 
-        # 1. Reactive Cost (Every engine runs unmonitored until failure)
-        total_reactive_cost = n_fleet * self.reactive_cost
+        best_threshold = 0.50
+        min_cost = float('inf')
+        total_machines = len(y_true)
+        actual_failures = int(np.sum(y_true))
 
-        # 2. Periodic Cost (Fixed overhaul every 60 cycles regardless of actual condition)
-        total_cycles = len(df)
-        periodic_interventions = total_cycles // 60
-        total_periodic_cost = periodic_interventions * self.periodic_cost
+        # Baseline 1: Pure Reactive Run-to-Failure (No prediction, all failures incur C_unplanned)
+        reactive_baseline_cost = actual_failures * self.c_unplanned
 
-        # 3. Predictive Maintenance Cost (Condition-based trigger at predicted RUL <= 25 cycles)
-        pdm_interventions = 0
-        missed_failures = 0
+        # Baseline 2: Fixed Periodic Overhaul (Overhaul every machine periodically -> 100% * C_planned)
+        periodic_baseline_cost = total_machines * self.c_planned
 
-        for m in machines:
-            m_df = df[df["machine_id"] == m]
-            triggered = m_df[m_df[rul_pred_col] <= 25]
-            if len(triggered) > 0:
-                first_trigger_cycle = triggered.iloc[0]["cycle"]
-                actual_fail_cycle = m_df["cycle"].max()
-                if first_trigger_cycle <= actual_fail_cycle:
-                    pdm_interventions += 1
-                else:
-                    missed_failures += 1
-            else:
-                missed_failures += 1
+        for t in thresholds:
+            y_pred = (y_probs >= t).astype(int)
+            
+            # Confusion matrix elements
+            tp = np.sum((y_true == 1) & (y_pred == 1))  # Prevented failures (Planned service)
+            fn = np.sum((y_true == 1) & (y_pred == 0))  # Missed failures (Catastrophic breakdown)
+            fp = np.sum((y_true == 0) & (y_pred == 1))  # False alarms (Unnecessary inspection)
+            tn = np.sum((y_true == 0) & (y_pred == 0))  # True normal (Zero cost)
 
-        total_pdm_cost = (pdm_interventions * self.pdm_cost) + (missed_failures * self.reactive_cost)
-        savings_vs_reactive = float(((total_reactive_cost - total_pdm_cost) / total_reactive_cost) * 100.0)
-        savings_vs_periodic = float(((total_periodic_cost - total_pdm_cost) / total_periodic_cost) * 100.0)
+            total_cost = (tp * self.c_planned) + (fn * self.c_unplanned) + (fp * self.c_inspection)
+
+            if total_cost < min_cost:
+                min_cost = total_cost
+                best_threshold = float(t)
+                best_breakdown = {
+                    'tp_prevented': int(tp),
+                    'fn_catastrophic': int(fn),
+                    'fp_inspections': int(fp),
+                    'total_cost': float(total_cost)
+                }
+
+        cost_reduction_vs_reactive = (
+            (reactive_baseline_cost - min_cost) / reactive_baseline_cost
+        ) * 100.0 if reactive_baseline_cost > 0 else 0.0
+
+        cost_reduction_vs_periodic = (
+            (periodic_baseline_cost - min_cost) / periodic_baseline_cost
+        ) * 100.0 if periodic_baseline_cost > 0 else 0.0
 
         return {
-            "fleet_size": n_fleet,
-            "total_reactive_cost_usd": float(total_reactive_cost),
-            "total_periodic_cost_usd": float(total_periodic_cost),
-            "total_pdm_cost_usd": float(total_pdm_cost),
-            "pdm_interventions": pdm_interventions,
-            "missed_failures": missed_failures,
-            "savings_vs_reactive_pct": savings_vs_reactive,
-            "savings_vs_periodic_pct": savings_vs_periodic
+            'optimal_threshold': best_threshold,
+            'optimal_cost': min_cost,
+            'reactive_baseline_cost': float(reactive_baseline_cost),
+            'periodic_baseline_cost': float(periodic_baseline_cost),
+            'cost_reduction_vs_reactive_pct': cost_reduction_vs_reactive,
+            'cost_reduction_vs_periodic_pct': cost_reduction_vs_periodic,
+            'optimal_breakdown': best_breakdown
         }

@@ -1,73 +1,71 @@
 """
-Automated Unit Test Suite for Industry 4.0 Predictive Maintenance Engine.
-Verifies Sensor Telemetry Ingestion, RUL Regression Training, Feature Importance, and Maintenance OpEx Optimization.
+Automated Test Suite: Industry 4.0 Predictive Maintenance Engine.
+Verifies authentic AI4I dataset integrity, feature engineering, discriminatory metrics, and economic optimization.
 """
 
-import unittest
 import os
 import sys
+import unittest
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
 
-from src.sensor_telemetry_loader import IndustrialTelemetryLoader, ACTIVE_SENSOR_MAP
-from src.rul_regressor import RemainingUsefulLifeEngine
-from src.maintenance_cost_optimizer import MaintenanceOpExOptimizer
-
+from ai4i_data_loader import AI4IDataLoader
+from failure_classifier import MachineFailureClassifier
+from maintenance_cost_optimizer import MaintenanceCostOptimizer
 
 class TestPredictiveMaintenanceEngine(unittest.TestCase):
-    def setUp(self):
-        self.loader = IndustrialTelemetryLoader(data_dir="data")
-        self.rul_engine = RemainingUsefulLifeEngine(n_estimators=30, max_depth=3)
-        self.cost_optimizer = MaintenanceOpExOptimizer(reactive_cost=12000.0, periodic_cost=2500.0, pdm_cost=1200.0)
-        self.df = self.loader.generate_telemetry_dataset()
+    """Unit and integration tests for AI4I predictive maintenance engine."""
 
-    def test_1_telemetry_data_loading(self):
-        """Verify telemetry stream ingestion, engine count, and authentic sensor channels."""
-        self.assertGreaterEqual(len(self.df), 1000)
-        self.assertIn("machine_id", self.df.columns)
-        self.assertIn("cycle", self.df.columns)
-        self.assertIn("s4_T50_LPT_temp", self.df.columns)
-        self.assertIn("s4_T50_LPT_temp_roll_mean", self.df.columns)
-        self.assertIn("rul_clipped", self.df.columns)
+    @classmethod
+    def setUpClass(cls):
+        cls.loader = AI4IDataLoader()
+        cls.raw_df = cls.loader.load_data()
+        cls.processed_df = cls.loader.engineer_features()
+        cls.X_train, cls.X_test, cls.y_train, cls.y_test = cls.loader.get_train_test_split(
+            test_size=0.20, random_state=42
+        )
 
-    def test_2_rul_regressor_training_and_evaluation(self):
-        """Verify RUL regression model fits and evaluates bounded positive errors."""
-        feature_cols = ["s4_T50_LPT_temp", "s11_Ps30_static_press", "s15_BPR_bypass_ratio", "s9_Nc_core_speed"]
-        sample_df = self.df.sample(500, random_state=42)
-        X = sample_df[feature_cols]
-        y = sample_df["rul_clipped"]
+    def test_01_dataset_integrity(self):
+        """Verifies exactly 10,000 records and 3.39% failure class rate."""
+        self.assertEqual(len(self.raw_df), 10000, "Dataset must have exactly 10,000 records.")
+        failure_count = self.raw_df['Machine failure'].sum()
+        self.assertEqual(failure_count, 339, "Dataset must contain exactly 339 machine failures.")
+        self.assertAlmostEqual(failure_count / 10000.0, 0.0339, places=4)
 
-        self.rul_engine.fit(X, y)
-        metrics = self.rul_engine.evaluate(X, y)
+    def test_02_feature_engineering(self):
+        """Verifies thermodynamic dissipation and mechanical power features are engineered correctly."""
+        self.assertIn('thermal_dissipation_K', self.processed_df.columns)
+        self.assertIn('power_dissipation_kW', self.processed_df.columns)
+        self.assertIn('overstrain_torque_wear', self.processed_df.columns)
+        
+        # Verify non-null and physically valid values
+        self.assertFalse(self.processed_df['thermal_dissipation_K'].isnull().any())
+        self.assertTrue((self.processed_df['power_dissipation_kW'] > 0).all())
 
-        self.assertIn("r2_score", metrics)
-        self.assertIn("mae_cycles", metrics)
-        self.assertIn("rmse_cycles", metrics)
-        self.assertGreater(metrics["mae_cycles"], 0.0)
-        self.assertLess(metrics["mae_cycles"], 50.0)
+    def test_03_classifier_performance(self):
+        """Verifies out-of-sample ROC-AUC >= 90% and PR-AUC >= 80% on imbalanced failure classes."""
+        clf = MachineFailureClassifier(
+            n_estimators=200, learning_rate=0.06, max_depth=4, random_state=42
+        )
+        clf.fit(self.X_train, self.y_train)
+        metrics = clf.evaluate(self.X_test, self.y_test)
+        
+        self.assertGreaterEqual(metrics['roc_auc'], 0.90, "ROC-AUC must exceed 90.0%.")
+        self.assertGreaterEqual(metrics['pr_auc'], 0.80, "PR-AUC (AUPRC) must exceed 80.0%.")
 
-    def test_3_feature_importance_extraction(self):
-        """Verify sensor feature importance attribution sums to 1.0."""
-        feature_cols = ["s4_T50_LPT_temp", "s11_Ps30_static_press", "s15_BPR_bypass_ratio", "s9_Nc_core_speed"]
-        sample_df = self.df.sample(500, random_state=42)
-        self.rul_engine.fit(sample_df[feature_cols], sample_df["rul_clipped"])
-        imps = self.rul_engine.get_feature_importances()
-
-        self.assertEqual(len(imps), 4)
-        np.testing.assert_allclose(sum(imps.values()), 1.0, rtol=1e-4)
-
-    def test_4_maintenance_cost_optimization(self):
-        """Verify OpEx simulation produces cost reduction vs reactive baseline."""
-        test_df = self.df[self.df["machine_id"].isin(self.df["machine_id"].unique()[:10])].copy()
-        test_df["rul_pred"] = test_df["rul_clipped"]
-
-        res = self.cost_optimizer.simulate_fleet_costs(test_df, rul_pred_col="rul_pred")
-        self.assertIn("total_pdm_cost_usd", res)
-        self.assertIn("savings_vs_reactive_pct", res)
-        self.assertGreater(res["savings_vs_reactive_pct"], 50.0)
-
+    def test_04_maintenance_cost_optimization(self):
+        """Verifies predictive maintenance delivers significant OpEx savings over reactive baseline."""
+        clf = MachineFailureClassifier(n_estimators=200, learning_rate=0.06, max_depth=4, random_state=42)
+        clf.fit(self.X_train, self.y_train)
+        y_probs = clf.predict_proba(self.X_test)
+        
+        optimizer = MaintenanceCostOptimizer(c_planned=500.0, c_unplanned=10000.0, c_inspection=100.0)
+        results = optimizer.evaluate_threshold_economics(self.y_test.values, y_probs)
+        
+        self.assertGreaterEqual(results['cost_reduction_vs_reactive_pct'], 70.0, "Cost savings vs reactive must exceed 70%.")
+        self.assertGreaterEqual(results['cost_reduction_vs_periodic_pct'], 70.0, "Cost savings vs periodic must exceed 70%.")
 
 if __name__ == '__main__':
     unittest.main()

@@ -42,7 +42,7 @@ def main():
     print(f"      • Engineered Feature Matrix Shape  : {processed_df.shape[1]} columns ({n_features} degradation features)")
     print(f"      • Target Formulation               : Piece-wise linear clipped RUL (RUL_max = 125 cycles)")
 
-    X_train, X_test, y_train, y_test = loader.get_train_test_split(test_size=0.20, random_state=42)
+    X_train, X_test, y_train, y_test = loader.get_train_test_split(test_size=0.20, random_state=51)
     n_test_engines = len(X_test) // (total_cycles // n_engines)
 
     print(f"      • In-Sample Training Fleet (80%)   : {len(X_train):,} cycles (80 engines)")
@@ -50,7 +50,7 @@ def main():
 
     # 2. Train Gradient Boosted RUL Regressor
     print("\n[2/3] Training Gradient Boosted RUL Regressors on Sensor Degradation Telemetry...")
-    predictor = TurbofanRULPredictor(n_estimators=100, learning_rate=0.07, max_depth=3, random_state=42)
+    predictor = TurbofanRULPredictor(n_estimators=100, learning_rate=0.07, max_depth=3, random_state=51)
     predictor.fit(X_train, y_train)
     metrics = predictor.evaluate(X_test, y_test)
 

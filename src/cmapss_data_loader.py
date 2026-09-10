@@ -116,7 +116,7 @@ class CMAPSSDataLoader:
         return self.processed_df
 
     def get_train_test_split(
-        self, test_size: float = 0.20, random_state: int = 42
+        self, test_size: float = 0.20, random_state: int = 51
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
         """
         Executes an engine-level group train-test split to prevent temporal leakage.

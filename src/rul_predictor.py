@@ -14,7 +14,7 @@ class TurbofanRULPredictor:
     Gradient Boosted Regression Tree (GBRT) prognostic estimator for turbofan RUL.
     """
 
-    def __init__(self, n_estimators: int = 100, learning_rate: float = 0.07, max_depth: int = 3, random_state: int = 42):
+    def __init__(self, n_estimators: int = 100, learning_rate: float = 0.07, max_depth: int = 3, random_state: int = 51):
         self.n_estimators = n_estimators
         self.learning_rate = learning_rate
         self.max_depth = max_depth

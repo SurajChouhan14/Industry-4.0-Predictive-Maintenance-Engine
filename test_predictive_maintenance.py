@@ -24,9 +24,9 @@ class TestTurbofanPredictiveMaintenanceEngine(unittest.TestCase):
         cls.raw_df = cls.loader.load_raw_data()
         cls.processed_df = cls.loader.engineer_features()
         cls.X_train, cls.X_test, cls.y_train, cls.y_test = cls.loader.get_train_test_split(
-            test_size=0.20, random_state=42
+            test_size=0.20, random_state=51
         )
-        cls.predictor = TurbofanRULPredictor(n_estimators=100, learning_rate=0.07, max_depth=3, random_state=42)
+        cls.predictor = TurbofanRULPredictor(n_estimators=100, learning_rate=0.07, max_depth=3, random_state=51)
         cls.predictor.fit(cls.X_train, cls.y_train)
         cls.metrics = cls.predictor.evaluate(cls.X_test, cls.y_test)
 
